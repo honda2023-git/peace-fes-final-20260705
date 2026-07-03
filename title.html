@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hachioji Peace Fes - 平和アンケート・プレゼンテーションシステム</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Noto Sans JP) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #FFFDF9;
+            --primary-color: #4A3E3D;
+            --accent-color: #E88265;
+            --bar-gradient-happiness: linear-gradient(90deg, #E88265 0%, #F2A1A8 100%);
+            --bar-gradient-anxiety: linear-gradient(90deg, #5B7C99 0%, #8FA9C4 100%);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #F0EAE5;
+            color: var(--primary-color);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* 16:9 プレゼン基本枠 */
+        .presentation-wrapper {
+            width: 1280px;
+            height: 720px;
+            background-color: var(--bg-color);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: flex;
+            border-radius: 16px;
+        }
+
+        /* スライド投影エリア */
+        .slide-area {
+            flex: 1;
+            height: 100%;
+            padding: 50px 60px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-right: 1px solid #E6DED8;
+            transition: all 0.3s ease;
+        }
+
+        /* プロンプターエリア */
+        .prompter-area {
+            width: 430px;
+            height: 100%;
+            background-color: #FAF6F0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 5px 0 15px rgba(0,0,0,0.02);
+            transition: all 0.3s ease;
+        }
+
+        .slide-title {
+            font-size: 38px;
+            font-weight: 900;
+            color: var(--primary-color);
+            border-left: 10px solid var(--accent-color);
+            padding-left: 20px;
+            line-height: 1.2;
+            margin-bottom: 25px;
+        }
+
+        /* スライド切替アニメーション */
+        .slide {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+            animation: slideFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .slide.active { display: flex; }
+        @keyframes slideFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* グラフ用スタイル */
+        .bar-chart { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+        .bar-item { display: flex; align-items: center; width: 100%; }
+        .bar-label { flex: 0 0 310px; text-align: right; font-weight: 700; font-size: 16px; padding-right: 20px; color: var(--primary-color); }
+        .bar-track { flex-grow: 1; height: 32px; background-color: #E6DED8; border-radius: 16px; overflow: hidden; position: relative; }
+        .bar-fill { height: 100%; display: flex; align-items: center; justify-content: flex-end; padding-right: 15px; color: white; font-weight: 900; font-size: 14px; border-radius: 16px; width: 0%; transition: width 1s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        .donut-chart-svg { transform: rotate(-90deg); }
+        .donut-hole {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px;
+            height: 140px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        /* ワードクラウド */
+        .word-cloud-container { position: relative; height: 400px; width: 100%; background-color: #FDF9F3; border-radius: 24px; border: 2px dashed #E6DED8; overflow: hidden; }
+        .cloud-word { position: absolute; font-weight: 900; white-space: nowrap; transition: transform 0.3s ease; }
+        @keyframes float-slow { 0%, 100% { transform: translateY(0px) rotate(var(--rot)); } 50% { transform: translateY(-12px) rotate(calc(var(--rot) + 2deg)); } }
+        .float-s { animation: float-slow 6s ease-in-out infinite; }
+
+        .prompter-section { transition: all 0.3s ease; border-radius: 12px; border: 2px solid transparent; }
+        .prompter-section.active-talk { background-color: #FFFDF4; border-color: #F3D99F; box-shadow: 0 10px 20px rgba(243, 217, 159, 0.2); transform: scale(1.02); }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; background-color: #D9C3BC; }
+        .dot.active { background-color: var(--accent-color); width: 28px; border-radius: 5px; }
+    </style>
+</head>
+<body class="flex items-center justify-center">
+
+    <div class="presentation-wrapper">
+        
+        <!-- 左側：スライド投影エリア -->
+        <div class="slide-area">
+            
+            <!-- スライド 1: タイトル -->
+            <div id="slide-0" class="slide active">
+                <div class="text-center flex flex-col justify-center items-center h-full">
+                    <div class="mb-4 inline-block px-4 py-1.5 bg-[#FFF2EE] rounded-full border border-[#FBEBE7]">
+                        <span class="text-sm font-extrabold text-[#E88265] tracking-widest uppercase">Hachioji Peace Fes</span>
+                    </div>
+                    <h1 class="text-6xl font-black mb-4 leading-tight tracking-wider">
+                        平和へのアンケート結果<br>
+                        <span class="text-[#E88265]">「みんなの幸せのカタチ」</span>
+                    </h1>
+                    <div class="w-24 h-2 bg-[#E88265] rounded-full my-6"></div>
+                    <p class="text-2xl font-bold text-[#6D5D5B]">回答者 989名の想いを発表します。</p>
+                </div>
+            </div>
+
+            <!-- スライド 2: 回答状況サマリー（文字サイズ拡大・視認性MAX） -->
+            <div id="slide-1" class="slide">
+                <h2 class="slide-title">平和アンケート 回答状況の概要</h2>
+                <div class="content-area justify-center">
+                    <div class="grid grid-cols-2 gap-10 items-stretch">
+                        
+                        <!-- 左カラム: 回答数＆男女比 -->
+                        <div class="flex flex-col space-y-6 justify-center">
+                            <!-- 総回答数カード (拡大) -->
+                            <div class="bg-white p-8 rounded-3xl border-2 border-[#E6DED8] shadow-md flex flex-col justify-center items-center text-center">
+                                <span class="text-lg font-black text-[#8C7C7B] tracking-[0.2em] mb-2 uppercase">総回答数</span>
+                                <p class="text-9xl font-black text-[#E88265] tracking-tighter">989<span class="text-3xl font-black text-gray-400 ml-2">名</span></p>
+                            </div>
+                            <!-- 男女比カード (拡大) -->
+                            <div class="bg-white p-7 rounded-3xl border-2 border-[#E6DED8] shadow-md flex flex-col justify-center">
+                                <span class="text-lg font-black text-[#8C7C7B] tracking-[0.2em] mb-4 text-center uppercase">男女比</span>
+                                <div class="flex items-center justify-between px-2 mb-3 font-black text-xl">
+                                    <span class="text-[#E88265]"><i class="fa-solid fa-venus mr-2"></i>女性 70%</span>
+                                    <span class="text-[#5B7C99]"><i class="fa-solid fa-mars mr-2"></i>男性 30%</span>
+                                </div>
+                                <div class="w-full h-7 bg-gray-200 rounded-full flex overflow-hidden border-2 border-white shadow-inner">
+                                    <div class="h-full bg-[#F2A1A8]" style="width: 70%"></div>
+                                    <div class="h-full bg-[#5B7C99]" style="width: 30%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 右カラム: 年代構成 (拡大) -->
+                        <div class="bg-white p-8 rounded-3xl border-2 border-[#E6DED8] shadow-md flex flex-col items-center justify-center">
+                            <span class="text-lg font-black text-[#8C7C7B] tracking-[0.2em] mb-6 uppercase">年代構成</span>
+                            <div class="flex items-center justify-around w-full">
+                                <div class="relative w-44 h-44 flex items-center justify-center shrink-0">
+                                    <svg class="donut-chart-svg" width="176" height="176" viewBox="0 0 42 42">
+                                        <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#E6DED8" stroke-width="6"></circle>
+                                        <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#E88265" stroke-width="6" stroke-dasharray="12 88" stroke-dashoffset="100"></circle>
+                                        <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#F9D066" stroke-width="6" stroke-dasharray="14 86" stroke-dashoffset="88"></circle>
+                                        <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#7EB395" stroke-width="6" stroke-dasharray="28 72" stroke-dashoffset="74"></circle>
+                                        <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#5B7C99" stroke-width="6" stroke-dasharray="46 54" stroke-dashoffset="46"></circle>
+                                    </svg>
+                                    <div class="donut-hole">
+                                        <span class="text-sm font-black text-[#4A3E3D] leading-tight">全世代<br>共創</span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col space-y-3.5 pl-6">
+                                    <div class="flex items-center text-lg font-black"><div class="w-5 h-5 rounded-full mr-3" style="background-color: #E88265;"></div>10代 (12%)</div>
+                                    <div class="flex items-center text-lg font-black"><div class="w-5 h-5 rounded-full mr-3" style="background-color: #F9D066;"></div>20代 (14%)</div>
+                                    <div class="flex items-center text-lg font-black"><div class="w-5 h-5 rounded-full mr-3" style="background-color: #7EB395;"></div>30・40代 (28%)</div>
+                                    <div class="flex items-center text-lg font-black"><div class="w-5 h-5 rounded-full mr-3" style="background-color: #5B7C99;"></div>幅広い世代 (46%)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-center text-xl font-black text-[#6D5D5B] mt-8 bg-[#FAF6F0] py-3 px-10 rounded-2xl border border-[#E6DED8]">
+                        💡 学生からシニアまで、八王子の「多様な世代の声」が一つに結集しました。
+                    </p>
+                </div>
+            </div>
+
+            <!-- スライド 3: 日常の幸せ -->
+            <div id="slide-2" class="slide">
+                <h2 class="slide-title">日常の中で「幸せだな〜」と感じる時は？</h2>
+                <div class="content-area justify-start">
+                    <div class="bar-chart mt-4">
+                        <div class="bar-item"><div class="bar-label">美味しいご飯やスイーツ</div><div class="bar-track"><div class="bar-fill" data-width="82%" style="background: var(--bar-gradient-happiness);">811票</div></div></div>
+                        <div class="bar-item"><div class="bar-label">大切な人と笑い合っている時</div><div class="bar-track"><div class="bar-fill" data-width="78%" style="background: var(--bar-gradient-happiness);">771票</div></div></div>
+                        <div class="bar-item"><div class="bar-label">お布団でのんびりする時</div><div class="bar-track"><div class="bar-fill" data-width="61%" style="background: var(--bar-gradient-happiness);">603票</div></div></div>
+                        <div class="bar-item"><div class="bar-label">子どもの成長や寝顔</div><div class="bar-track"><div class="bar-fill" data-width="55%" style="background: var(--bar-gradient-happiness);">544票</div></div></div>
+                        <div class="bar-item"><div class="bar-label">趣味に没頭している時</div><div class="bar-track"><div class="bar-fill" data-width="53%" style="background: var(--bar-gradient-happiness);">524票</div></div></div>
+                    </div>
+                    <p class="text-center text-lg font-bold text-[#8C7C7B] mt-10">🔍 私たちが守るべき平和は、このようなささやかな日常の中にあります。</p>
+                </div>
+            </div>
+
+            <!-- スライド 4: 社会の不安 -->
+            <div id="slide-3" class="slide">
+                <h2 class="slide-title">社会や生活の中で「不安」に思うこと</h2>
+                <div class="content-area justify-start">
+                    <div class="bar-chart mt-4">
+                        <div class="bar-item"><div class="bar-label">戦争や紛争のニュース</div><div class="bar-track"><div class="bar-fill" data-width="88%" style="background: var(--bar-gradient-anxiety);">870票</div></div></div>
+                        <div class="bar-item"><div class="bar-label">ネットの誹謗中傷・トゲトゲ空気</div><div class="bar-track"><div class="bar-fill" data-width="75%" style="background: var(--bar-gradient-anxiety);">742票</div></div></div>
+                        <div class="bar-item"><div class="bar-label">物価高や将来のお金の不安</div><div class="bar-track"><div class="bar-fill" data-width="62%" style="background: var(--bar-gradient-anxiety);">613票</div></div></div>
+                        <div class="bar-item"><div class="bar-label">子どもたちが生きる未来</div><div class="bar-track"><div class="bar-fill" data-width="58%" style="background: var(--bar-gradient-anxiety);">574票</div></div></div>
+                        <div class="bar-item"><div class="bar-label">自然災害や環境問題</div><div class="bar-track"><div class="bar-fill" data-width="52%" style="background: var(--bar-gradient-anxiety);">514票</div></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- スライド 5: キャラクタータイプ -->
+            <div id="slide-4" class="slide">
+                <h2 class="slide-title">平和をつくるキャラクタータイプ</h2>
+                <div class="content-area justify-center">
+                    <div class="flex items-center justify-around">
+                        <div class="relative w-56 h-56 flex items-center justify-center">
+                            <div class="w-full h-full rounded-full" style="background: conic-gradient(#E88265 0% 38%, #F9D066 38% 65%, #7EB395 65% 82%, #C084FC 82% 92%, #4A3E3D 92% 100%);"></div>
+                            <div class="donut-hole !w-32 !h-32"><span class="text-xl font-black text-[#E88265]">個性を<br>活かす</span></div>
+                        </div>
+                        <div class="flex flex-col space-y-3">
+                            <div class="flex items-center text-xl font-black"><div class="w-5 h-5 rounded-full mr-4" style="background-color: #E88265;"></div>🤝 ピースサポーター (38%)</div>
+                            <div class="flex items-center text-xl font-black"><div class="w-5 h-5 rounded-full mr-4" style="background-color: #F9D066;"></div>👂 ピースリスナー (27%)</div>
+                            <div class="flex items-center text-xl font-black"><div class="w-5 h-5 rounded-full mr-4" style="background-color: #7EB395;"></div>🕊️ ピースコネクター (17%)</div>
+                            <div class="flex items-center text-xl font-black"><div class="w-5 h-5 rounded-full mr-4" style="background-color: #C084FC;"></div>🎨 ピースクリエイター (10%)</div>
+                            <div class="flex items-center text-xl font-black"><div class="w-5 h-5 rounded-full mr-4" style="background-color: #4A3E3D;"></div>🏃 ピースアクター (8%)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- スライド 6: ワードクラウド -->
+            <div id="slide-5" class="slide">
+                <h2 class="slide-title">未来へのアクション：私たちの決意</h2>
+                <div class="content-area justify-start">
+                    <div class="word-cloud-container">
+                        <span class="cloud-word float-s text-5xl text-[#E88265] font-black" style="top: 15%; left: 8%; --rot: -3deg;">#まず自分から一歩</span>
+                        <span class="cloud-word float-s text-6xl text-[#4A3E3D] font-bold" style="top: 38%; left: 10%; --rot: 2deg;">対話と共生</span>
+                        <span class="cloud-word float-s text-7xl text-[#E88265] font-black" style="top: 8%; left: 40%; --rot: 1deg;">目の前の人を大切に</span>
+                        <span class="cloud-word float-s text-5xl text-[#7EB395] font-black" style="top: 72%; left: 32%; --rot: 3deg;">ありがとうを伝える</span>
+                        <span class="cloud-word float-s text-5xl text-[#5B7C99] font-bold" style="top: 42%; left: 75%; --rot: 3deg;">感謝を言葉に</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- コントロール -->
+            <div class="flex justify-between items-center mt-6">
+                <div class="flex space-x-2" id="nav-dots"></div>
+                <div class="flex space-x-4">
+                    <button onclick="prevSlide()" class="px-6 py-2.5 rounded-full border-2 border-[#D9C3BC] hover:bg-[#F5EFEB] font-black text-sm">◀ 戻る</button>
+                    <button onclick="nextSlide()" class="px-6 py-2.5 rounded-full bg-[#E88265] text-white hover:bg-[#df6a4d] font-black text-sm shadow-lg">進む ▶</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：プロンプター -->
+        <div class="prompter-area" id="presenter-sidebar">
+            <div class="p-6 border-b border-[#E6DED8] bg-[#FFF2EE] flex justify-between items-center shrink-0">
+                <span class="text-sm font-black text-[#4A3E3D] uppercase tracking-widest flex items-center gap-2">
+                    <i class="fa-solid fa-microphone text-[#E88265]"></i> 実行委員長 カンペ
+                </span>
+                <button onclick="togglePresenterMode()" class="text-xs bg-white border px-3 py-1.5 rounded font-bold" id="slide-num">閉じる</button>
+            </div>
+            <div class="flex-1 p-6 overflow-y-auto space-y-10" id="prompter-scroll">
+                <div id="prompter-0" class="prompter-section p-4 space-y-4 active-talk">
+                    <span class="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded">1: オープニング</span>
+                    <p class="text-lg font-black leading-relaxed">「実行委員長の井崎・川島です！ 平和へのアンケート結果を発表します！」</p>
+                </div>
+                <div id="prompter-1" class="prompter-section p-4 space-y-4">
+                    <span class="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded">2: サマリー</span>
+                    <p class="text-lg font-black leading-relaxed">「回答数はなんと【989名】！ 10代からシニアまで、八王子の多様な世代の声が結集しました！」</p>
+                </div>
+                <!-- 省略 (JS制御は維持) -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentIdx = 0;
+        const totalSlides = 6;
+        const dotsContainer = document.getElementById('nav-dots');
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('div');
+            dot.className = `dot ${i === 0 ? 'active' : ''}`;
+            dot.onclick = () => updatePresentation(i);
+            dotsContainer.appendChild(dot);
+        }
+
+        function updatePresentation(targetIdx) {
+            document.getElementById(`slide-${currentIdx}`).classList.remove('active');
+            document.getElementById(`slide-${targetIdx}`).classList.add('active');
+            
+            const prevP = document.getElementById(`prompter-${currentIdx}`);
+            const nextP = document.getElementById(`prompter-${targetIdx}`);
+            if(prevP) prevP.classList.remove('active-talk');
+            if(nextP) {
+                nextP.classList.add('active-talk');
+                nextP.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            const dots = dotsContainer.children;
+            dots[currentIdx].classList.remove('active');
+            dots[targetIdx].classList.add('active');
+
+            if (targetIdx === 2 || targetIdx === 3) {
+                setTimeout(() => {
+                    document.querySelectorAll(`#slide-${targetIdx} .bar-fill`).forEach(f => f.style.width = f.getAttribute('data-width'));
+                }, 100);
+            }
+            currentIdx = targetIdx;
+        }
+
+        function nextSlide() { updatePresentation(currentIdx < totalSlides - 1 ? currentIdx + 1 : 0); }
+        function prevSlide() { updatePresentation(currentIdx > 0 ? currentIdx - 1 : totalSlides - 1); }
+        document.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight' || e.key === ' ') nextSlide(); if (e.key === 'ArrowLeft') prevSlide(); });
+
+        let prompterMode = true;
+        function togglePresenterMode() {
+            prompterMode = !prompterMode;
+            document.getElementById('presenter-sidebar').style.display = prompterMode ? 'flex' : 'none';
+        }
+    </script>
+</body>
+</html>
